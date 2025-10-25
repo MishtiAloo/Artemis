@@ -1,13 +1,18 @@
 const db = require("../db");
 
+// Helper to handle errors consistently (match analytics controller)
+const handleError = (res, error, label = "") => {
+  console.error(`❌ ${label} Error:`, error.message);
+  res.status(500).json({ error: error.message });
+};
+
 // GET all areas
 exports.getAllAreas = async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM Area");
+    const result = await db.query("SELECT * FROM Area ORDER BY AreaID");
     res.json(result.rows);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    handleError(res, err, "getAllAreas");
   }
 };
 
@@ -16,26 +21,46 @@ exports.getAreaById = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query("SELECT * FROM Area WHERE AreaID = $1", [id]);
-    if (result.rows.length === 0) return res.status(404).send("Area not found");
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Area not found" });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    handleError(res, err, "getAreaById");
   }
 };
 
 // CREATE area
 exports.createArea = async (req, res) => {
   try {
-    const { Name, Population, InfectionRate, RiskLevel } = req.body;
+    const { name, infectionrate, risklevel } = req.body;
+
+    // Normalize risk level to DB enum values (lowercase)
+    const normalizeRisk = (r) => {
+      if (!r) return "low";
+      const v = String(r).toLowerCase();
+      if (v.includes("extreme") || v.includes("critical")) return "extreme";
+      if (v.includes("danger")) return "dangerous";
+      if (v.includes("high")) return "high";
+      if (v.includes("medium")) return "medium";
+      if (v.includes("low")) return "low";
+      if (v.includes("risky")) return "risky";
+      if (v.includes("safe")) return "safe";
+      return "low";
+    };
+
+    const riskEnum = normalizeRisk(risklevel);
+
+    const rate =
+      infectionrate === undefined || infectionrate === null
+        ? null
+        : parseFloat(infectionrate);
     const result = await db.query(
-      "INSERT INTO Area (Name, Population, InfectionRate, RiskLevel) VALUES ($1, $2, $3, $4) RETURNING *",
-      [Name, Population, InfectionRate, RiskLevel]
+      "INSERT INTO Area (Name, InfectionRate, RiskLevel) VALUES ($1, $2, $3) RETURNING *",
+      [name, rate, riskEnum]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    handleError(res, err, "createArea");
   }
 };
 
@@ -43,16 +68,34 @@ exports.createArea = async (req, res) => {
 exports.updateArea = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Name, Population, InfectionRate, RiskLevel } = req.body;
+    const { name, infectionrate, risklevel } = req.body;
+    const normalizeRisk = (r) => {
+      if (!r) return "low";
+      const v = String(r).toLowerCase();
+      if (v.includes("extreme") || v.includes("critical")) return "extreme";
+      if (v.includes("danger")) return "dangerous";
+      if (v.includes("high")) return "high";
+      if (v.includes("medium")) return "medium";
+      if (v.includes("low")) return "low";
+      if (v.includes("risky")) return "risky";
+      if (v.includes("safe")) return "safe";
+      return "low";
+    };
+    const riskEnum = normalizeRisk(risklevel);
+    const rate =
+      infectionrate === undefined || infectionrate === null
+        ? null
+        : parseFloat(infectionrate);
+
     const result = await db.query(
-      "UPDATE Area SET Name=$1, Population=$2, InfectionRate=$3, RiskLevel=$4 WHERE AreaID=$5 RETURNING *",
-      [Name, Population, InfectionRate, RiskLevel, id]
+      "UPDATE Area SET Name=$1, InfectionRate=$2, RiskLevel=$3 WHERE AreaID=$4 RETURNING *",
+      [name, rate, riskEnum, id]
     );
-    if (result.rows.length === 0) return res.status(404).send("Area not found");
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Area not found" });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    handleError(res, err, "updateArea");
   }
 };
 
@@ -60,11 +103,51 @@ exports.updateArea = async (req, res) => {
 exports.deleteArea = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query("DELETE FROM Area WHERE AreaID=$1 RETURNING *", [id]);
-    if (result.rows.length === 0) return res.status(404).send("Area not found");
+    const result = await db.query(
+      "DELETE FROM Area WHERE AreaID=$1 RETURNING *",
+      [id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Area not found" });
     res.json({ message: "Area deleted" });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    handleError(res, err, "deleteArea");
+  }
+};
+
+// GET high risk areas - Areas with infection rate higher than global average
+exports.getHighRiskAreas = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT * FROM Area
+      WHERE InfectionRate > (SELECT AVG(InfectionRate) FROM Area)
+      ORDER BY InfectionRate DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getHighRiskAreas");
+  }
+};
+
+// GET areas with ongoing infections (VIEW)
+exports.getAreasWithOngoingInfections = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT DISTINCT
+        a.AreaID,
+        a.Name,
+        a.InfectionRate,
+        a.RiskLevel,
+        COUNT(i.PatientID) AS active_cases
+      FROM Area a
+      JOIN Patient p ON a.AreaID = p.AreaID
+      JOIN Infection i ON p.PatientID = i.PatientID
+      WHERE i.Status = 'active'
+      GROUP BY a.AreaID, a.Name, a.InfectionRate, a.RiskLevel
+      ORDER BY active_cases DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getAreasWithOngoingInfections");
   }
 };

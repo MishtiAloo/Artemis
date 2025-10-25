@@ -1,11 +1,20 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { getAllVaccines, getVaccineById, createVaccine, updateVaccine, deleteVaccine } = require('../controllers/vaccine.controller');
+const {
+  getAllVaccines,
+  getVaccineById,
+  createVaccine,
+  updateVaccine,
+  deleteVaccine,
+  searchVaccines,
+} = require("../controllers/vaccine.controller");
 
-router.get('/', getAllVaccines);
-router.get('/:id', getVaccineById);
-router.post('/', createVaccine);
-router.put('/:id', updateVaccine);
-router.delete('/:id', deleteVaccine);
+router.get("/", getAllVaccines);
+// search must come before id-based route to avoid 'search' being treated as an id
+router.get("/search", searchVaccines);
+router.get("/:id", getVaccineById);
+router.post("/", createVaccine);
+router.put("/:id", updateVaccine);
+router.delete("/:id", deleteVaccine);
 
 module.exports = router;

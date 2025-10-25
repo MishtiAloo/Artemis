@@ -3,9 +3,10 @@ const cors = require("cors");
 require("dotenv").config();
 
 const db = require("./db");
-const port = process.env.PORT || 5000;
+const port = 5050; // Fixed port to match frontend API calls
 const app = express();
 
+// Enable CORS for all origins (development)
 app.use(cors());
 app.use(express.json());
 
@@ -19,6 +20,7 @@ const vaccineRoutes = require("./routes/vaccine.route");
 const vaccineBatchRoutes = require("./routes/vaccineBatch.route");
 const vaccinationRecordRoutes = require("./routes/vaccinationRecord.route");
 const contactsRoutes = require("./routes/contacts.route");
+const analyticsRoutes = require("./routes/analytics.route");
 
 app.use("/areas", areaRoutes);
 app.use("/patients", patientRoutes);
@@ -29,6 +31,7 @@ app.use("/vaccines", vaccineRoutes);
 app.use("/vaccine-batches", vaccineBatchRoutes);
 app.use("/vaccination-records", vaccinationRecordRoutes);
 app.use("/contacts", contactsRoutes);
+app.use("/analytics", analyticsRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
@@ -47,3 +50,8 @@ app.get("/users", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+
+app.get("/test-cors", (req, res) => {
+  res.json({ message: "CORS works!" });
+});
+
