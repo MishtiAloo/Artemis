@@ -278,43 +278,6 @@ function Patients() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3>Overdue Vaccinations</h3>
-        <p className="text-muted">
-          Patients who haven't fulfilled doses and are past next due date (DB
-          View)
-        </p>
-        <button onClick={fetchOverdue}>Load Overdue</button>
-        {overdue.length > 0 && (
-          <table style={{ marginTop: 12 }}>
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Vaccine</th>
-                <th>Required Doses</th>
-                <th>Completed Doses</th>
-                <th>Next Due Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overdue.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.patient_name}</td>
-                  <td>{row.vaccine_name}</td>
-                  <td>{row.dosecount}</td>
-                  <td>{row.completed_doses}</td>
-                  <td>
-                    {row.next_due_date
-                      ? new Date(row.next_due_date).toLocaleDateString()
-                      : "N/A"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
       <table>
         <thead>
           <tr>
@@ -352,6 +315,43 @@ function Patients() {
           ))}
         </tbody>
       </table>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>Overdue Vaccinations</h3>
+        <p className="text-muted">
+          Patients who haven't fulfilled doses and are past next due date (DB
+          View)
+        </p>
+        <button onClick={fetchOverdue}>Load Overdue</button>
+        {overdue.length > 0 && (
+          <table style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Vaccine</th>
+                <th>Required Doses</th>
+                <th>Completed Doses</th>
+                <th>Next Due Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overdue.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.patient_name}</td>
+                  <td>{row.vaccine_name}</td>
+                  <td>{row.dosecount}</td>
+                  <td>{row.completed_doses}</td>
+                  <td>
+                    {row.next_due_date
+                      ? new Date(row.next_due_date).toLocaleDateString()
+                      : "N/A"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
