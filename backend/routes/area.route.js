@@ -8,11 +8,13 @@ const {
   deleteArea,
   getHighRiskAreas,
   getAreasWithOngoingInfections,
+  getProminentDiseasePerArea,
 } = require("../controllers/area.controller");
 
 router.get("/", getAllAreas);
 router.get("/high-risk", getHighRiskAreas);
 router.get("/ongoing-infections", getAreasWithOngoingInfections);
+router.get("/prominent-diseases", getProminentDiseasePerArea);
 router.get("/:id", getAreaById);
 router.post("/", createArea);
 router.put("/:id", updateArea);

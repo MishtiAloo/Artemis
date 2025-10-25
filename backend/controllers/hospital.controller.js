@@ -50,12 +50,12 @@ exports.getHospitalById = async (req, res) => {
   }
 };
 
-// SEARCH hospitals by name (WHERE LIKE)
+// SEARCH hospitals by optional filters: name, areaid, batchid
 exports.searchHospitals = async (req, res) => {
   try {
-    const { name } = req.query;
-    const result = await db.query(
-      `
+    const { name, areaid, batchid } = req.query;
+
+    let query = `
       SELECT 
         h.HospitalID,
         h.Name,
@@ -64,11 +64,28 @@ exports.searchHospitals = async (req, res) => {
         a.Name AS area_name
       FROM Hospital h
       LEFT JOIN Area a ON h.AreaID = a.AreaID
-      WHERE h.Name ILIKE $1
-      ORDER BY h.Name
-    `,
-      [`%${name}%`]
-    );
+      WHERE 1=1`;
+    const params = [];
+
+    if (name && name.trim() !== "") {
+      params.push(`%${name}%`);
+      query += ` AND h.Name ILIKE $${params.length}`;
+    }
+
+    if (areaid) {
+      params.push(areaid);
+      query += ` AND h.AreaID = $${params.length}`;
+    }
+
+    if (batchid) {
+      params.push(batchid);
+      // Filter hospitals that have the specified vaccine batch
+      query += ` AND EXISTS (SELECT 1 FROM VaccineBatch vb WHERE vb.HospitalID = h.HospitalID AND vb.BatchID = $${params.length})`;
+    }
+
+    query += ` ORDER BY h.Name`;
+
+    const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
     handleError(res, err, "searchHospitals");

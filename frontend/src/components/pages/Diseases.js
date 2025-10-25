@@ -5,6 +5,7 @@ const API_URL = "http://localhost:5050";
 
 function Diseases() {
   const [diseases, setDiseases] = useState([]);
+  const [diseasesNoVax, setDiseasesNoVax] = useState([]);
   const [infections, setInfections] = useState([]);
   const [patients, setPatients] = useState([]);
   const [activeTab, setActiveTab] = useState("diseases");
@@ -25,6 +26,7 @@ function Diseases() {
 
   useEffect(() => {
     fetchDiseases();
+    fetchDiseasesNoVax();
     fetchInfections();
     fetchPatients();
   }, []);
@@ -35,6 +37,15 @@ function Diseases() {
       setDiseases(res.data);
     } catch (error) {
       console.error("Error fetching diseases:", error);
+    }
+  };
+
+  const fetchDiseasesNoVax = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/diseases/without-vaccines`);
+      setDiseasesNoVax(res.data);
+    } catch (error) {
+      console.error("Error fetching diseases without vaccines:", error);
     }
   };
 
@@ -287,37 +298,83 @@ function Diseases() {
       )}
 
       {activeTab === "diseases" && (
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Variant</th>
-              <th>Transmission</th>
-              <th>Severity</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {diseases.map((disease) => (
-              <tr key={disease.diseaseid}>
-                <td>{disease.diseaseid}</td>
-                <td>{disease.name}</td>
-                <td>{disease.variant}</td>
-                <td>{disease.transmissionmode}</td>
-                <td>{disease.severity}</td>
-                <td>
-                  <button
-                    onClick={() => handleDeleteDisease(disease.diseaseid)}
-                    className="danger"
-                  >
-                    Delete
-                  </button>
-                </td>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Variant</th>
+                <th>Transmission</th>
+                <th>Severity</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {diseases.map((disease) => (
+                <tr key={disease.diseaseid}>
+                  <td>{disease.diseaseid}</td>
+                  <td>{disease.name}</td>
+                  <td>{disease.variant}</td>
+                  <td>{disease.transmissionmode}</td>
+                  <td>{disease.severity}</td>
+                  <td>
+                    <button
+                      onClick={() => handleDeleteDisease(disease.diseaseid)}
+                      className="danger"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h3>Diseases without vaccines</h3>
+              <button className="secondary" onClick={fetchDiseasesNoVax}>
+                Refresh
+              </button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Variant</th>
+                  <th>Transmission</th>
+                  <th>Severity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diseasesNoVax.map((d) => (
+                  <tr key={d.diseaseid}>
+                    <td>{d.diseaseid}</td>
+                    <td>{d.name}</td>
+                    <td>{d.variant || "-"}</td>
+                    <td>{d.transmissionmode || "-"}</td>
+                    <td>{d.severity}</td>
+                  </tr>
+                ))}
+                {diseasesNoVax.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: "center" }}>
+                      All diseases have at least one vaccine.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {activeTab === "infections" && (

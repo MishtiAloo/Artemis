@@ -6,7 +6,7 @@ const handleError = (res, error, label = "") => {
   res.status(500).json({ error: error.message });
 };
 
-// GET all patients with JOIN to Area
+// GET all patients with JOIN to Area and hospitalized hospitals
 exports.getAllPatients = async (req, res) => {
   try {
     const result = await db.query(`
@@ -17,9 +17,13 @@ exports.getAllPatients = async (req, res) => {
         p.ContactNo,
         a.Name AS area_name,
         a.RiskLevel,
-        a.InfectionRate
+        a.InfectionRate,
+        COALESCE(STRING_AGG(DISTINCT h.Name, ', '), '') AS hospitals
       FROM Patient p
       LEFT JOIN Area a ON p.AreaID = a.AreaID
+      LEFT JOIN Infection i ON i.PatientID = p.PatientID AND i.Status = 'hospitalized'
+      LEFT JOIN Hospital h ON i.HospitalID = h.HospitalID
+      GROUP BY p.PatientID, p.Name, p.AreaID, p.ContactNo, a.Name, a.RiskLevel, a.InfectionRate
       ORDER BY p.PatientID
     `);
     res.json(result.rows);
@@ -38,10 +42,14 @@ exports.getPatientById = async (req, res) => {
         p.*,
         a.Name AS area_name,
         a.RiskLevel,
-        a.InfectionRate
+        a.InfectionRate,
+        COALESCE(STRING_AGG(DISTINCT h.Name, ', '), '') AS hospitals
       FROM Patient p
       LEFT JOIN Area a ON p.AreaID = a.AreaID
+      LEFT JOIN Infection i ON i.PatientID = p.PatientID AND i.Status = 'hospitalized'
+      LEFT JOIN Hospital h ON i.HospitalID = h.HospitalID
       WHERE p.PatientID = $1
+      GROUP BY p.PatientID, a.Name, a.RiskLevel, a.InfectionRate
     `,
       [id]
     );
@@ -87,6 +95,80 @@ exports.searchPatients = async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     handleError(res, err, "searchPatients");
+  }
+};
+
+// Patients in areas with high infection rate (above average or threshold)
+exports.getPatientsInHighInfectionAreas = async (req, res) => {
+  try {
+    const { threshold } = req.query;
+    if (threshold) {
+      const t = parseFloat(threshold);
+      const result = await db.query(
+        `SELECT p.PatientID, p.Name, p.AreaID, p.ContactNo, a.Name AS area_name, a.RiskLevel, a.InfectionRate
+         FROM Patient p
+         JOIN Area a ON p.AreaID = a.AreaID
+         WHERE a.InfectionRate > $1
+         ORDER BY a.InfectionRate DESC, p.Name`,
+        [t]
+      );
+      return res.json(result.rows);
+    }
+    const result = await db.query(
+      `SELECT p.PatientID, p.Name, p.AreaID, p.ContactNo, a.Name AS area_name, a.RiskLevel, a.InfectionRate
+       FROM Patient p
+       JOIN Area a ON p.AreaID = a.AreaID
+       WHERE a.InfectionRate > (SELECT AVG(InfectionRate) FROM Area)
+       ORDER BY a.InfectionRate DESC, p.Name`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getPatientsInHighInfectionAreas");
+  }
+};
+
+// Patients who have diseases X,Y,Z using set operations (UNION for any, INTERSECT for all)
+exports.getPatientsByDiseases = async (req, res) => {
+  try {
+    const { ids, mode } = req.query;
+    if (!ids)
+      return res
+        .status(400)
+        .json({
+          error: "ids query param required (comma-separated disease IDs)",
+        });
+    const list = ids
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !Number.isNaN(n));
+    if (list.length === 0)
+      return res.status(400).json({ error: "No valid disease IDs provided" });
+
+    const op =
+      String(mode || "any").toLowerCase() === "all" ? "INTERSECT" : "UNION";
+    const selects = list.map(
+      (_, idx) =>
+        `SELECT DISTINCT p.PatientID, p.Name, p.AreaID, p.ContactNo FROM Infection i JOIN Patient p ON i.PatientID = p.PatientID WHERE i.DiseaseID = $${
+          idx + 1
+        }`
+    );
+    const sql = selects.join(` ${op} `) + " ORDER BY Name";
+    const result = await db.query(sql, list);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getPatientsByDiseases");
+  }
+};
+
+// Overdue vaccinations (via DB VIEW)
+exports.getOverdueVaccinations = async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT * FROM OverdueVaccinations ORDER BY next_due_date ASC, patient_name`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getOverdueVaccinations");
   }
 };
 

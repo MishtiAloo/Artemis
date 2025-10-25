@@ -7,7 +7,7 @@
 ## join:
 - patient who lives in area where infection rate/risk level
 - Join hospitals and vaccine batches → show hospital name, vaccine name and stock count.
-- For each patient, show their infection history + vaccination recor (who got sick, who got vaccinated).
+- For each patient, show their infection history + vaccination record (who got sick, who got vaccinated).
 
 ## group by:
 - which hospital got how many batches/how many vaccines/vacs left
@@ -24,7 +24,7 @@
 ## set:
 - patients who lives in high risk zone but not contacted any
 - patient who have this disease also this disease
-- Patients who got infected but never vaccinated.
+- Patients who got infected but never vaccinated.   
 
 ## update column:
 - change area infection rate after some entry

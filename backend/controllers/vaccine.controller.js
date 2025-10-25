@@ -79,6 +79,34 @@ exports.searchVaccines = async (req, res) => {
   }
 };
 
+// GET vaccines sorted by poor performance: percentage of vaccinated people who still died from targeted disease
+exports.getPoorlyPerformingVaccines = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        v.VaccineID,
+        v.Name AS vaccine_name,
+        d.Name AS disease_name,
+        COUNT(DISTINCT vr.PatientID) AS vaccinated_people,
+        COUNT(DISTINCT CASE WHEN i.Status = 'dead' AND i.DiseaseID = v.TargetedDiseaseID THEN i.PatientID END) AS deceased_people,
+        CASE WHEN COUNT(DISTINCT vr.PatientID) = 0 THEN 0
+             ELSE ROUND(100.0 * COUNT(DISTINCT CASE WHEN i.Status = 'dead' AND i.DiseaseID = v.TargetedDiseaseID THEN i.PatientID END)::numeric
+                        / COUNT(DISTINCT vr.PatientID)::numeric, 2)
+        END AS death_percentage
+      FROM Vaccine v
+      LEFT JOIN Disease d ON v.TargetedDiseaseID = d.DiseaseID
+      LEFT JOIN VaccineBatch vb ON vb.VaccineID = v.VaccineID
+      LEFT JOIN VaccinationRecord vr ON vr.BatchID = vb.BatchID
+      LEFT JOIN Infection i ON i.PatientID = vr.PatientID AND i.DiseaseID = v.TargetedDiseaseID
+      GROUP BY v.VaccineID, v.Name, d.Name
+      ORDER BY death_percentage DESC, vaccinated_people DESC, v.Name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getPoorlyPerformingVaccines");
+  }
+};
+
 // CREATE vaccine
 exports.createVaccine = async (req, res) => {
   try {

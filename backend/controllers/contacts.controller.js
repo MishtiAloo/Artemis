@@ -31,6 +31,48 @@ exports.getAllContacts = async (req, res) => {
   }
 };
 
+// SEARCH contacts by source patient name and date range
+exports.searchContactsByPatientAndDate = async (req, res) => {
+  try {
+    const { name, startDate, endDate } = req.query;
+    let query = `
+      SELECT 
+        c.SourcePatientID AS patientid,
+        c.TargetPatientID AS contactpersonid,
+        c.Date,
+        c.AreaID,
+        c.ContactType AS contacttype,
+        p1.Name AS patient_name,
+        p2.Name AS contact_person_name,
+        a.Name AS area_name
+      FROM Contacts c
+      LEFT JOIN Patient p1 ON c.SourcePatientID = p1.PatientID
+      LEFT JOIN Patient p2 ON c.TargetPatientID = p2.PatientID
+      LEFT JOIN Area a ON c.AreaID = a.AreaID
+      WHERE 1=1`;
+    const params = [];
+
+    if (name && name.trim() !== "") {
+      params.push(`%${name}%`);
+      query += ` AND p1.Name ILIKE $${params.length}`;
+    }
+    if (startDate) {
+      params.push(startDate);
+      query += ` AND c.Date >= $${params.length}`;
+    }
+    if (endDate) {
+      params.push(endDate);
+      query += ` AND c.Date <= $${params.length}`;
+    }
+
+    query += ` ORDER BY c.Date DESC`;
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "searchContactsByPatientAndDate");
+  }
+};
+
 // CREATE contact
 exports.createContact = async (req, res) => {
   try {

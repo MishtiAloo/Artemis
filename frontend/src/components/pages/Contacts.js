@@ -8,6 +8,9 @@ function Contacts() {
   const [patients, setPatients] = useState([]);
   const [areas, setAreas] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [searchName, setSearchName] = useState("");
+  const [searchStartDate, setSearchStartDate] = useState("");
+  const [searchEndDate, setSearchEndDate] = useState("");
   const [formData, setFormData] = useState({
     patientid: "",
     contactpersonid: "",
@@ -28,6 +31,21 @@ function Contacts() {
       setContacts(res.data);
     } catch (error) {
       console.error("Error fetching contacts:", error);
+    }
+  };
+
+  const searchContacts = async () => {
+    try {
+      const params = {};
+      if (searchName && searchName.trim() !== "")
+        params.name = searchName.trim();
+      if (searchStartDate) params.startDate = searchStartDate;
+      if (searchEndDate) params.endDate = searchEndDate;
+
+      const res = await axios.get(`${API_URL}/contacts/search`, { params });
+      setContacts(res.data);
+    } catch (error) {
+      console.error("Error searching contacts:", error);
     }
   };
 
@@ -85,6 +103,51 @@ function Contacts() {
       <div className="page-header">
         <h1>Contact Tracing</h1>
         <p className="text-muted">Track patient contacts and exposure areas</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Search Contacts</h3>
+        <div className="grid-3">
+          <div>
+            <label>Patient Name</label>
+            <input
+              type="text"
+              placeholder="e.g., John"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Start Date</label>
+            <input
+              type="date"
+              value={searchStartDate}
+              onChange={(e) => setSearchStartDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>End Date</label>
+            <input
+              type="date"
+              value={searchEndDate}
+              onChange={(e) => setSearchEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="action-buttons">
+          <button onClick={searchContacts}>Search</button>
+          <button
+            className="secondary"
+            onClick={() => {
+              setSearchName("");
+              setSearchStartDate("");
+              setSearchEndDate("");
+              fetchContacts();
+            }}
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <div className="action-buttons">
@@ -192,7 +255,12 @@ function Contacts() {
               <td>{contact.contact_person_name}</td>
               <td>{new Date(contact.date).toLocaleDateString()}</td>
               <td>{contact.area_name}</td>
-              <td>{contact.contacttype}</td>
+              <td>
+                {contact.contacttype
+                  ? String(contact.contacttype).charAt(0).toUpperCase() +
+                    String(contact.contacttype).slice(1)
+                  : ""}
+              </td>
               <td>
                 <button
                   onClick={() =>

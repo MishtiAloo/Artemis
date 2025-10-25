@@ -14,6 +14,7 @@ exports.getAllVaccineBatches = async (req, res) => {
         vb.BatchID,
         vb.VaccineID,
         vb.NumberOfVaccines,
+        vb.RemainingVaccines,
         vb.HospitalID,
         v.Name AS vaccine_name,
         h.Name AS hospital_name

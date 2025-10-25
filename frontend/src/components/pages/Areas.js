@@ -5,6 +5,7 @@ const API_URL = "http://localhost:5050";
 
 function Areas() {
   const [areas, setAreas] = useState([]);
+  const [prominent, setProminent] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -15,6 +16,7 @@ function Areas() {
 
   useEffect(() => {
     fetchAreas();
+    fetchProminent();
   }, []);
 
   const fetchAreas = async () => {
@@ -23,6 +25,15 @@ function Areas() {
       setAreas(res.data);
     } catch (error) {
       console.error("Error fetching areas:", error);
+    }
+  };
+
+  const fetchProminent = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/areas/prominent-diseases`);
+      setProminent(res.data);
+    } catch (error) {
+      console.error("Error fetching prominent diseases per area:", error);
     }
   };
 
@@ -163,6 +174,28 @@ function Areas() {
           ))}
         </tbody>
       </table>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <h3>Prominent Disease Outbreak by Area</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Disease</th>
+              <th>Occurrences</th>
+            </tr>
+          </thead>
+          <tbody>
+            {prominent.map((row, idx) => (
+              <tr key={idx}>
+                <td>{row.area_name}</td>
+                <td>{row.disease_name}</td>
+                <td>{row.occurrence_count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

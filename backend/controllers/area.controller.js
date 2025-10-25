@@ -151,3 +151,35 @@ exports.getAreasWithOngoingInfections = async (req, res) => {
     handleError(res, err, "getAreasWithOngoingInfections");
   }
 };
+
+// GET prominent disease per area: disease with highest infection count among patients in the area
+exports.getProminentDiseasePerArea = async (req, res) => {
+  try {
+    const result = await db.query(`
+      WITH counts AS (
+        SELECT 
+          p.AreaID,
+          i.DiseaseID,
+          COUNT(*) AS cnt,
+          ROW_NUMBER() OVER (PARTITION BY p.AreaID ORDER BY COUNT(*) DESC, i.DiseaseID) AS rn
+        FROM Patient p
+        JOIN Infection i ON i.PatientID = p.PatientID
+        GROUP BY p.AreaID, i.DiseaseID
+      )
+      SELECT 
+        a.AreaID,
+        a.Name AS area_name,
+        d.DiseaseID,
+        d.Name AS disease_name,
+        c.cnt AS occurrence_count
+      FROM counts c
+      JOIN Area a ON a.AreaID = c.AreaID
+      JOIN Disease d ON d.DiseaseID = c.DiseaseID
+      WHERE c.rn = 1
+      ORDER BY a.Name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getProminentDiseasePerArea");
+  }
+};

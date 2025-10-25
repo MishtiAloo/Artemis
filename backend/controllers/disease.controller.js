@@ -16,6 +16,22 @@ exports.getAllDiseases = async (req, res) => {
   }
 };
 
+// GET diseases that do not have any vaccines
+exports.getDiseasesWithoutVaccines = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT d.*
+      FROM Disease d
+      LEFT JOIN Vaccine v ON v.TargetedDiseaseID = d.DiseaseID
+      WHERE v.VaccineID IS NULL
+      ORDER BY d.Name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    handleError(res, err, "getDiseasesWithoutVaccines");
+  }
+};
+
 // GET disease by ID
 exports.getDiseaseById = async (req, res) => {
   try {

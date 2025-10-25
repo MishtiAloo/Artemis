@@ -6,8 +6,13 @@ const API_URL = "http://localhost:5050";
 function Patients() {
   const [patients, setPatients] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [diseases, setDiseases] = useState([]);
   const [searchName, setSearchName] = useState("");
   const [filterArea, setFilterArea] = useState("");
+  const [highInfectionOnly, setHighInfectionOnly] = useState(false);
+  const [selectedDiseaseIds, setSelectedDiseaseIds] = useState([]);
+  const [diseaseMode, setDiseaseMode] = useState("any");
+  const [overdue, setOverdue] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -19,6 +24,7 @@ function Patients() {
   useEffect(() => {
     fetchPatients();
     fetchAreas();
+    fetchDiseases();
   }, []);
 
   const fetchPatients = async () => {
@@ -39,14 +45,50 @@ function Patients() {
     }
   };
 
+  const fetchDiseases = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/diseases`);
+      setDiseases(res.data);
+    } catch (error) {
+      console.error("Error fetching diseases:", error);
+    }
+  };
+
   const handleSearch = async () => {
     try {
+      if (highInfectionOnly) {
+        const res = await axios.get(`${API_URL}/patients/high-infection-areas`);
+        setPatients(res.data);
+      } else {
+        const res = await axios.get(
+          `${API_URL}/patients/search?name=${searchName}&areaid=${filterArea}`
+        );
+        setPatients(res.data);
+      }
+    } catch (error) {
+      console.error("Error searching patients:", error);
+    }
+  };
+
+  const handleDiseaseSearch = async () => {
+    try {
+      if (selectedDiseaseIds.length === 0) return;
+      const ids = selectedDiseaseIds.join(",");
       const res = await axios.get(
-        `${API_URL}/patients/search?name=${searchName}&areaid=${filterArea}`
+        `${API_URL}/patients/by-diseases?ids=${ids}&mode=${diseaseMode}`
       );
       setPatients(res.data);
     } catch (error) {
-      console.error("Error searching patients:", error);
+      console.error("Error searching by diseases:", error);
+    }
+  };
+
+  const fetchOverdue = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/patients/overdue-vaccinations`);
+      setOverdue(res.data);
+    } catch (error) {
+      console.error("Error fetching overdue vaccinations:", error);
     }
   };
 
@@ -176,11 +218,22 @@ function Patients() {
             ))}
           </select>
         </div>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={highInfectionOnly}
+              onChange={(e) => setHighInfectionOnly(e.target.checked)}
+            />
+            Areas with infection rate above average
+          </label>
+        </div>
         <button onClick={handleSearch}>Search</button>
         <button
           onClick={() => {
             setSearchName("");
             setFilterArea("");
+            setHighInfectionOnly(false);
             fetchPatients();
           }}
           className="secondary"
@@ -189,12 +242,86 @@ function Patients() {
         </button>
       </div>
 
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>Find Patients by Diseases (set union or intersect)</h3>
+        <div className="inline">
+          <label style={{ minWidth: 140 }}>Diseases</label>
+          <select
+            multiple
+            value={selectedDiseaseIds}
+            onChange={(e) =>
+              setSelectedDiseaseIds(
+                Array.from(e.target.selectedOptions).map((o) => o.value)
+              )
+            }
+            style={{ minWidth: 260, height: 100 }}
+          >
+            {diseases.map((d) => (
+              <option key={d.diseaseid} value={d.diseaseid}>
+                {d.name} {d.variant ? `(${d.variant})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="inline" style={{ marginTop: 8 }}>
+          <label style={{ minWidth: 140 }}>Mode</label>
+          <select
+            value={diseaseMode}
+            onChange={(e) => setDiseaseMode(e.target.value)}
+          >
+            <option value="any">Any (UNION)</option>
+            <option value="all">All (INTERSECT)</option>
+          </select>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <button onClick={handleDiseaseSearch}>Find by Diseases</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>Overdue Vaccinations</h3>
+        <p className="text-muted">
+          Patients who haven't fulfilled doses and are past next due date (DB
+          View)
+        </p>
+        <button onClick={fetchOverdue}>Load Overdue</button>
+        {overdue.length > 0 && (
+          <table style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Vaccine</th>
+                <th>Required Doses</th>
+                <th>Completed Doses</th>
+                <th>Next Due Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overdue.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.patient_name}</td>
+                  <td>{row.vaccine_name}</td>
+                  <td>{row.dosecount}</td>
+                  <td>{row.completed_doses}</td>
+                  <td>
+                    {row.next_due_date
+                      ? new Date(row.next_due_date).toLocaleDateString()
+                      : "N/A"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       <table>
         <thead>
           <tr>
             <th>ID</th>
             <th>Name</th>
             <th>Area</th>
+            <th>Hospitalized At</th>
             <th>Contact</th>
             <th>Actions</th>
           </tr>
@@ -205,6 +332,7 @@ function Patients() {
               <td>{patient.patientid}</td>
               <td>{patient.name}</td>
               <td>{patient.area_name || "N/A"}</td>
+              <td>{patient.hospitals || "-"}</td>
               <td>{patient.contactno}</td>
               <td>
                 <button

@@ -6,6 +6,7 @@ const API_URL = "http://localhost:5050";
 function Vaccines() {
   const [vaccines, setVaccines] = useState([]);
   const [diseases, setDiseases] = useState([]);
+  const [poorList, setPoorList] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [searchName, setSearchName] = useState("");
   const [formData, setFormData] = useState({
@@ -47,6 +48,15 @@ function Vaccines() {
       setVaccines(res.data);
     } catch (error) {
       console.error("Error searching vaccines:", error);
+    }
+  };
+
+  const loadPoorPerformance = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/vaccines/poor-performance`);
+      setPoorList(res.data);
+    } catch (error) {
+      console.error("Error loading poor performance list:", error);
     }
   };
 
@@ -181,6 +191,9 @@ function Vaccines() {
         >
           Reset
         </button>
+        <button onClick={loadPoorPerformance} className="warning">
+          Show Poorly Performing
+        </button>
       </div>
 
       <table>
@@ -216,6 +229,34 @@ function Vaccines() {
           ))}
         </tbody>
       </table>
+
+      {poorList.length > 0 && (
+        <div className="card" style={{ marginTop: 24 }}>
+          <h3>Poorly Performing Vaccines (Highest death % first)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Vaccine</th>
+                <th>Targeted Disease</th>
+                <th>Vaccinated People</th>
+                <th>Deceased People</th>
+                <th>Death %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {poorList.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.vaccine_name}</td>
+                  <td>{row.disease_name}</td>
+                  <td>{row.vaccinated_people}</td>
+                  <td>{row.deceased_people}</td>
+                  <td>{Number(row.death_percentage).toFixed(2)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

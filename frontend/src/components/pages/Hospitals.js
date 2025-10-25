@@ -6,7 +6,10 @@ const API_URL = "http://localhost:5050";
 function Hospitals() {
   const [hospitals, setHospitals] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [vaccineBatches, setVaccineBatches] = useState([]);
   const [searchName, setSearchName] = useState("");
+  const [searchAreaId, setSearchAreaId] = useState("");
+  const [searchBatchId, setSearchBatchId] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -18,6 +21,7 @@ function Hospitals() {
   useEffect(() => {
     fetchHospitals();
     fetchAreas();
+    fetchVaccineBatches();
   }, []);
 
   const fetchHospitals = async () => {
@@ -38,11 +42,24 @@ function Hospitals() {
     }
   };
 
+  const fetchVaccineBatches = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/vaccine-batches`);
+      setVaccineBatches(res.data);
+    } catch (error) {
+      console.error("Error fetching vaccine batches:", error);
+    }
+  };
+
   const handleSearch = async () => {
     try {
-      const res = await axios.get(
-        `${API_URL}/hospitals/search?name=${searchName}`
-      );
+      const params = {};
+      if (searchName && searchName.trim() !== "")
+        params.name = searchName.trim();
+      if (searchAreaId) params.areaid = searchAreaId;
+      if (searchBatchId) params.batchid = searchBatchId;
+
+      const res = await axios.get(`${API_URL}/hospitals/search`, { params });
       setHospitals(res.data);
     } catch (error) {
       console.error("Error searching hospitals:", error);
@@ -162,10 +179,40 @@ function Hospitals() {
             onChange={(e) => setSearchName(e.target.value)}
           />
         </div>
+        <div>
+          <label>Filter by Area</label>
+          <select
+            value={searchAreaId}
+            onChange={(e) => setSearchAreaId(e.target.value)}
+          >
+            <option value="">All Areas</option>
+            {areas.map((area) => (
+              <option key={area.areaid} value={area.areaid}>
+                {area.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>Filter by Vaccine Batch</label>
+          <select
+            value={searchBatchId}
+            onChange={(e) => setSearchBatchId(e.target.value)}
+          >
+            <option value="">All Batches</option>
+            {vaccineBatches.map((b) => (
+              <option key={b.batchid} value={b.batchid}>
+                #{b.batchid} - {b.vaccine_name} ({b.hospital_name})
+              </option>
+            ))}
+          </select>
+        </div>
         <button onClick={handleSearch}>Search</button>
         <button
           onClick={() => {
             setSearchName("");
+            setSearchAreaId("");
+            setSearchBatchId("");
             fetchHospitals();
           }}
           className="secondary"

@@ -4,6 +4,9 @@ const {
   getAllPatients,
   getPatientById,
   searchPatients,
+  getPatientsInHighInfectionAreas,
+  getPatientsByDiseases,
+  getOverdueVaccinations,
   createPatient,
   updatePatient,
   deletePatient,
@@ -11,6 +14,9 @@ const {
 
 router.get("/", getAllPatients);
 router.get("/search", searchPatients);
+router.get("/high-infection-areas", getPatientsInHighInfectionAreas);
+router.get("/by-diseases", getPatientsByDiseases);
+router.get("/overdue-vaccinations", getOverdueVaccinations);
 router.get("/:id", getPatientById);
 router.post("/", createPatient);
 router.put("/:id", updatePatient);
