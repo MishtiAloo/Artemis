@@ -129,7 +129,7 @@ exports.getHighRiskAreas = async (req, res) => {
   }
 };
 
-// GET areas with ongoing infections (VIEW)
+// GET areas with ongoing infections
 exports.getAreasWithOngoingInfections = async (req, res) => {
   try {
     const result = await db.query(`

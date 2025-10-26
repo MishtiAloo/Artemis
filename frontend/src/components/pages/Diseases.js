@@ -23,6 +23,7 @@ function Diseases() {
     recoverydate: "",
     status: "Active",
   });
+  const [editingInfectionKeys, setEditingInfectionKeys] = useState(null); // { patientid, diseaseid }
 
   useEffect(() => {
     fetchDiseases();
@@ -87,7 +88,22 @@ function Diseases() {
   const handleInfectionSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/infections`, infectionForm);
+      if (editingInfectionKeys) {
+        // Update existing infection (don't allow changing patient/disease keys here)
+        const { patientid, diseaseid } = editingInfectionKeys;
+        const payload = {
+          diagnosisdate: infectionForm.diagnosisdate,
+          recoverydate: infectionForm.recoverydate || null,
+          status: infectionForm.status,
+        };
+        await axios.put(
+          `${API_URL}/infections/${patientid}/${diseaseid}`,
+          payload
+        );
+      } else {
+        // Create new infection
+        await axios.post(`${API_URL}/infections`, infectionForm);
+      }
       setShowForm(false);
       setInfectionForm({
         patientid: "",
@@ -96,9 +112,15 @@ function Diseases() {
         recoverydate: "",
         status: "Active",
       });
+      setEditingInfectionKeys(null);
       fetchInfections();
     } catch (error) {
-      console.error("Error creating infection:", error);
+      console.error(
+        editingInfectionKeys
+          ? "Error updating infection:"
+          : "Error creating infection:",
+        error
+      );
     }
   };
 
@@ -122,6 +144,35 @@ function Diseases() {
         console.error("Error deleting infection:", error);
       }
     }
+  };
+
+  const handleEditInfection = (infection) => {
+    setActiveTab("infections");
+    setShowForm(true);
+    // lock keys via editing state; keep selects disabled during edit
+    setEditingInfectionKeys({
+      patientid: infection.patientid,
+      diseaseid: infection.diseaseid,
+    });
+    setInfectionForm({
+      patientid: infection.patientid,
+      diseaseid: infection.diseaseid,
+      diagnosisdate: infection.diagnosisdate
+        ? new Date(infection.diagnosisdate).toISOString().slice(0, 10)
+        : "",
+      recoverydate: infection.recoverydate
+        ? new Date(infection.recoverydate).toISOString().slice(0, 10)
+        : "",
+      // Normalize into the display options used in the select
+      status: (() => {
+        const v = String(infection.status || "").toLowerCase();
+        if (v === "active") return "Active";
+        if (v === "cured" || v === "recovered") return "Recovered";
+        if (v === "dead" || v === "deceased") return "Deceased";
+        if (v === "hospitalized") return "Hospitalized";
+        return "Active";
+      })(),
+    });
   };
 
   return (
@@ -214,7 +265,11 @@ function Diseases() {
 
       {showForm && activeTab === "infections" && (
         <div className="card">
-          <h3>Add New Infection Record</h3>
+          <h3>
+            {editingInfectionKeys
+              ? "Edit Infection Record"
+              : "Add New Infection Record"}
+          </h3>
           <form onSubmit={handleInfectionSubmit}>
             <label>Patient</label>
             <select
@@ -226,6 +281,7 @@ function Diseases() {
                 })
               }
               required
+              disabled={!!editingInfectionKeys}
             >
               <option value="">Select Patient</option>
               {patients.map((p) => (
@@ -245,6 +301,7 @@ function Diseases() {
                 })
               }
               required
+              disabled={!!editingInfectionKeys}
             >
               <option value="">Select Disease</option>
               {diseases.map((d) => (
@@ -290,9 +347,35 @@ function Diseases() {
               <option value="Active">Active</option>
               <option value="Recovered">Recovered</option>
               <option value="Deceased">Deceased</option>
+              <option value="Hospitalized">Hospitalized</option>
             </select>
 
-            <button type="submit">Create Infection Record</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="submit">
+                {editingInfectionKeys
+                  ? "Update Infection"
+                  : "Create Infection Record"}
+              </button>
+              {editingInfectionKeys && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingInfectionKeys(null);
+                    setInfectionForm({
+                      patientid: "",
+                      diseaseid: "",
+                      diagnosisdate: "",
+                      recoverydate: "",
+                      status: "Active",
+                    });
+                  }}
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -404,6 +487,13 @@ function Diseases() {
                 </td>
                 <td>{infection.status}</td>
                 <td>
+                  <button
+                    onClick={() => handleEditInfection(infection)}
+                    className="secondary"
+                    style={{ marginRight: 8 }}
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() =>
                       handleDeleteInfection(
